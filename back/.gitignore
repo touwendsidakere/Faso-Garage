@@ -31,3 +31,39 @@ build/
 
 ### VS Code ###
 .vscode/
+# Fichiers de build
+target/
+*.class
+*.jar
+*.war
+
+# Fichiers uploadés
+back/uploads/
+uploads/
+
+# Fichiers sensibles
+.env
+application-local.properties
+application-secret.properties
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+front/node_modules/
+
+# Logs
+*.log
+
+# Fichiers temporaires
+back_tree.txt
+front_tree.txt
+.claude/

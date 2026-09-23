@@ -1,5 +1,15 @@
 package com.fasogarages.backend.service;
 
+import java.util.List;
+
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.fasogarages.backend.dto.AuthRequest;
 import com.fasogarages.backend.dto.AuthResponse;
 import com.fasogarages.backend.dto.RegisterRequest;
@@ -12,16 +22,8 @@ import com.fasogarages.backend.repository.ProfessionnelRepository;
 import com.fasogarages.backend.repository.ServiceOffertRepository;
 import com.fasogarages.backend.repository.UtilisateurRepository;
 import com.fasogarages.backend.security.JwtUtils;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -35,7 +37,7 @@ public class AuthService {
     private final JwtUtils jwtUtils;
     private final AuthenticationManager authenticationManager;
     private final UserDetailsService userDetailsService;
-    private final TelephoneValidationService telephoneValidationService;  // ← NOUVEAU
+    private final TelephoneValidationService telephoneValidationService;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -74,7 +76,7 @@ public class AuthService {
                 .email(request.getEmail())
                 .indicatifPays(indicatifPays)
                 .codePaysIso(codePays)
-                .telephoneVerifie(false)  // ← Par défaut, non vérifié
+                .telephoneVerifie(false)
                 .motDePasse(passwordEncoder.encode(request.getMotDePasse()))
                 .role(role)
                 .build();
@@ -161,7 +163,7 @@ public class AuthService {
                     .longitude(dto.getLongitude())
                     .ville(dto.getVille())
                     .horaires(dto.getHoraires())
-                    .statut(Professionnel.Statut.VALIDE) // créé par un admin -> validé d'emblée
+                    .statut(Professionnel.Statut.VALIDE)
                     .build();
 
             professionnelRepository.save(professionnel);
@@ -188,13 +190,34 @@ public class AuthService {
         return serviceOffertRepository.findAllById(serviceIds);
     }
 
+    // ============================================================
+    // MÉTHODE LOGIN AVEC LOGS DE DIAGNOSTIC
+    // ============================================================
     public AuthResponse login(AuthRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getTelephone(), request.getMotDePasse())
-        );
+        System.out.println("═══════════════════════════════════════");
+        System.out.println("🔐 TENTATIVE DE CONNEXION");
+        System.out.println("📞 Téléphone reçu : [" + request.getTelephone() + "]");
+        System.out.println("🔑 Mot de passe reçu : [" + request.getMotDePasse() + "]");
+
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getTelephone(), request.getMotDePasse())
+            );
+            System.out.println("✅ Authentification Spring Security OK");
+        } catch (Exception e) {
+            System.out.println("❌ ÉCHEC authentification : " + e.getClass().getSimpleName());
+            System.out.println("❌ Message : " + e.getMessage());
+            System.out.println("═══════════════════════════════════════");
+            throw e;
+        }
 
         Utilisateur utilisateur = utilisateurRepository.findByTelephone(request.getTelephone())
                 .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+
+        System.out.println("👤 Utilisateur trouvé : " + utilisateur.getEmail());
+        System.out.println("🎭 Rôle : " + utilisateur.getRole());
+        System.out.println("✅ Compte activé : " + utilisateur.isEnabled());
+        System.out.println("═══════════════════════════════════════");
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(utilisateur.getTelephone());
         String token = jwtUtils.generateToken(userDetails);

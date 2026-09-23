@@ -1,19 +1,31 @@
 package com.fasogarages.backend.initializer;
 
-import com.fasogarages.backend.entity.*;
-import com.fasogarages.backend.repository.*;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import com.fasogarages.backend.entity.Astuce;
+import com.fasogarages.backend.entity.Categorie;
+import com.fasogarages.backend.entity.NumeroUtile;
+import com.fasogarages.backend.entity.Professionnel;
+import com.fasogarages.backend.entity.ServiceOffert;
+import com.fasogarages.backend.entity.Utilisateur;
+import com.fasogarages.backend.repository.AstuceRepository;
+import com.fasogarages.backend.repository.CategorieRepository;
+import com.fasogarages.backend.repository.NumeroUtileRepository;
+import com.fasogarages.backend.repository.ProfessionnelRepository;
+import com.fasogarages.backend.repository.ServiceOffertRepository;
+import com.fasogarages.backend.repository.UtilisateurRepository;
+
+import lombok.RequiredArgsConstructor;
 
 @Component
 @RequiredArgsConstructor
-@Profile({"dev", "local"})
+@Profile({"dev", "local", "default"})  // ← AJOUT de "default" pour que ça s'exécute partout
 public class DataLoader implements CommandLineRunner {
 
     private final CategorieRepository categorieRepository;
@@ -28,6 +40,8 @@ public class DataLoader implements CommandLineRunner {
     @Transactional
     public void run(String... args) {
 
+        
+
         // ===== 1. CATÉGORIES =====
         if (categorieRepository.count() == 0) {
             List<Categorie> categories = List.of(
@@ -38,7 +52,7 @@ public class DataLoader implements CommandLineRunner {
                     Categorie.builder().libelle("Lavage automobile").icone("fa-car-wash").build()
             );
             categorieRepository.saveAll(categories);
-            System.out.println("✅ Catégories initialisées");
+            System.out.println(" Catégories initialisées");
 
             Categorie garage = categorieRepository.findByLibelleIgnoreCase("Garage mécanique").orElse(null);
             if (garage != null) {
@@ -49,7 +63,7 @@ public class DataLoader implements CommandLineRunner {
                         ServiceOffert.builder().libelle("Freinage").categorie(garage).build()
                 );
                 serviceOffertRepository.saveAll(services);
-                System.out.println("✅ Services initiés");
+                System.out.println(" Services initiés");
             }
         }
 
@@ -62,7 +76,7 @@ public class DataLoader implements CommandLineRunner {
                     NumeroUtile.builder().nom("SAMU / Urgences").numero("15").type("SAMU").build()
             );
             numeroUtileRepository.saveAll(numeros);
-            System.out.println("✅ Numéros utiles initialisés");
+            System.out.println(" Numéros utiles initialisés");
         }
 
         // ===== 3. ASTUCES =====
@@ -78,11 +92,11 @@ public class DataLoader implements CommandLineRunner {
                             .build()
             );
             astuceRepository.saveAll(astuces);
-            System.out.println("✅ Astuces initialisées");
+            System.out.println("Astuces initialisées");
         }
 
         // ===== 4. COMPTE ADMINISTRATEUR =====
-        if (!utilisateurRepository.existsByEmail("admin@fasogarages.com") 
+        if (!utilisateurRepository.existsByEmail("admin@fasogarages.com")
             && !utilisateurRepository.existsByTelephone("+22670000000")) {
             Utilisateur admin = Utilisateur.builder()
                     .nom("Administrateur")
@@ -93,19 +107,19 @@ public class DataLoader implements CommandLineRunner {
                     .role(Utilisateur.Role.ROLE_ADMIN)
                     .build();
             utilisateurRepository.save(admin);
-            System.out.println("Compte administrateur créé");
+            System.out.println(" Compte administrateur créé");
         } else {
-            System.out.println("compte administrateur existe déjà, ignoré.");
+            System.out.println(" Compte administrateur existe déjà, ignoré.");
         }
 
         // ===== 5. PROFESSIONNEL DE DÉMONSTRATION =====
-        if (!utilisateurRepository.existsByEmail("demo@garage.com") 
-            && !utilisateurRepository.existsByTelephone("70001111")) {
+        if (!utilisateurRepository.existsByEmail("demo@garage.com")
+            && !utilisateurRepository.existsByTelephone("+22670001111")) {
             Utilisateur proUser = Utilisateur.builder()
                     .nom("Zongo")
                     .prenom("Souleymane")
                     .email("demo@garage.com")
-                    .telephone("70001111")
+                    .telephone("+22670001111")
                     .motDePasse(passwordEncoder.encode("password123"))
                     .role(Utilisateur.Role.ROLE_PRO)
                     .build();
@@ -127,12 +141,12 @@ public class DataLoader implements CommandLineRunner {
                         .statut(Professionnel.Statut.VALIDE)
                         .build();
                 professionnelRepository.save(professionnel);
-                System.out.println("✅ Professionnel de démonstration créé");
+                System.out.println(" Professionnel de démonstration créé");
             }
         } else {
-            System.out.println("ℹ️ Professionnel de démonstration existe déjà, ignoré.");
+            System.out.println("Professionnel de démonstration existe déjà, ignoré.");
         }
 
-        System.out.println("🎉 Initialisation terminée !");
+        System.out.println(" Initialisation terminée !");
     }
 }
