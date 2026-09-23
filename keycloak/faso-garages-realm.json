@@ -1,0 +1,64 @@
+{
+  "realm": "faso-garages",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": true,
+  "resetPasswordAllowed": true,
+  "roles": {
+    "realm": [
+      { "name": "USER", "description": "Utilisateur standard" },
+      { "name": "PRO", "description": "Professionnel (garage, station-service...)" },
+      { "name": "ADMIN", "description": "Administrateur de la plateforme" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "faso-garages-frontend",
+      "name": "Faso Garages - Frontend Angular",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:4200/*"],
+      "webOrigins": ["http://localhost:4200"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    },
+    {
+      "clientId": "faso-garages-test-client",
+      "name": "Client de test (curl / vérification manuelle) — JAMAIS en prod",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true
+    }
+  ],
+  "users": [
+    {
+      "username": "admin.test",
+      "enabled": true,
+      "email": "admin.test@fasogarages.local",
+      "firstName": "Admin",
+      "lastName": "Test",
+      "credentials": [
+        { "type": "password", "value": "ChangeMoi123!", "temporary": false }
+      ],
+      "realmRoles": ["ADMIN"]
+    },
+    {
+      "username": "pro.test",
+      "enabled": true,
+      "email": "pro.test@fasogarages.local",
+      "firstName": "Pro",
+      "lastName": "Test",
+      "credentials": [
+        { "type": "password", "value": "ChangeMoi123!", "temporary": false }
+      ],
+      "realmRoles": ["PRO"]
+    }
+  ]
+}

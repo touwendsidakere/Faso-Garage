@@ -1,0 +1,17 @@
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: start-dev --import-realm
+    environment:
+      # Identifiants de la console d'admin Keycloak elle-même — usage LOCAL/DEV
+      # uniquement. Ne jamais réutiliser tel quel en production.
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./faso-garages-realm.json:/opt/keycloak/data/import/faso-garages-realm.json:ro
+      - keycloak_data:/opt/keycloak/data
+
+volumes:
+  keycloak_data:
