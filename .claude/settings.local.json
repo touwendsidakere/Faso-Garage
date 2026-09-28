@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /c/Users/touwe/Faso-Garage-main/back && rm -rf ./scratch_hashgen && ls | grep scratch || echo \"cleaned up, no scratch folder left\")"
+    ]
+  }
+}

@@ -311,7 +311,7 @@ export class Profil {
 
   initiales = computed(() => {
     const nom = this.nomComplet();
-    return nom.slice(0, 2).toUpperCase();
+    return (nom ?? '').slice(0, 2).toUpperCase();
   });
 
   roleLabel = computed(() => {

@@ -366,22 +366,32 @@ export class RegisterUser {
   }
 
   submit() {
-    if (this.form.invalid) return;
-    this.loading = true;
-    this.erreur = '';
-
-    const { confirmer, ...data } = this.form.value;
-
-    this.auth.registerUser({ ...data, role: 'ROLE_USER' }).subscribe({
-      next: () => {
-        this.succes = 'Compte créé avec succès !';
-        this.loading = false;
-        setTimeout(() => this.router.navigate(['/']), 1200);
-      },
-      error: (err) => {
-        this.erreur = err.error?.erreur ?? 'Une erreur est survenue. Réessayez.';
-        this.loading = false;
-      },
-    });
+  if (this.form.invalid) {
+    this.form.markAllAsTouched();
+    return;
   }
+
+  this.loading = true;
+  this.erreur = '';
+
+  const f = this.form.value;
+
+  this.auth.registerUser({
+    nom: f.nom,
+    prenom: f.prenom,
+    telephone: f.telephone, 
+    motDePasse: f.motDePasse,
+    email: f.email
+  }).subscribe({
+    next: () => {
+      // L'utilisateur est créé dans Keycloak + base locale
+      // On le redirige vers Keycloak pour qu'il se connecte
+      this.auth.login();
+    },
+    error: (err) => {
+      this.erreur = err.error?.erreur ?? 'Une erreur est survenue lors de l\'inscription.';
+      this.loading = false;
+    }
+  });
+}
 }

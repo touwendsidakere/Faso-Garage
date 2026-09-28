@@ -667,38 +667,43 @@ export class RegisterPro implements OnInit {
     );
   }
 
-  submit() {
-    if (this.step2Form.invalid) {
-      this.step2Form.markAllAsTouched();
-      return;
-    }
-    this.loading = true;
-    this.erreur = '';
-
-    const s1 = this.step1Form.value;
-    const s2 = this.step2Form.value;
-
-    this.auth.registerPro({
-      nom: s1.nom,
-      prenom: s1.prenom,
-      telephone: s1.telephone,
-      motDePasse: s1.motDePasse,
-      role: 'ROLE_PRO',
-      nomEtablissement: s2.nomEtablissement,
-      categorieId: +s2.categorieId,
-      serviceIds: s2.serviceIds,
-      description: s2.description,
-      whatsapp: s2.whatsapp,
-      ville: s2.ville,
-      horaires: s2.horaires,
-      latitude: s2.latitude,
-      longitude: s2.longitude,
-    }).subscribe({
-      next: () => this.router.navigate(['/en-attente']),
-      error: (err) => {
-        this.erreur = err.error?.erreur ?? 'Une erreur est survenue. Réessayez.';
-        this.loading = false;
-      },
-    });
+ submit() {
+  if (this.step2Form.invalid) {
+    this.step2Form.markAllAsTouched();
+    return;
   }
+
+  this.loading = true;
+  this.erreur = '';
+
+  const s1 = this.step1Form.value;
+  const s2 = this.step2Form.value;
+
+  this.auth.registerPro({
+    nom: s1.nom,
+    prenom: s1.prenom,
+    telephone: s1.telephone, 
+    motDePasse: s1.motDePasse,
+    // Champs spécifiques au pro
+    nomEtablissement: s2.nomEtablissement,
+    categorieId: +s2.categorieId,
+    serviceIds: s2.serviceIds,
+    description: s2.description,
+    whatsapp: s2.whatsapp,
+    ville: s2.ville,
+    horaires: s2.horaires,
+    latitude: s2.latitude,
+    longitude: s2.longitude
+  }).subscribe({
+    next: () => {
+      // L'utilisateur est créé dans Keycloak + base locale (avec profil pro)
+      // On le redirige vers Keycloak pour qu'il se connecte
+      this.auth.login();
+    },
+    error: (err) => {
+      this.erreur = err.error?.erreur ?? 'Une erreur est survenue lors de l\'inscription.';
+      this.loading = false;
+    }
+  });
+}
 }

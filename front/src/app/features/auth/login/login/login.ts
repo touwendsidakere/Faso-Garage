@@ -1,13 +1,11 @@
-import { Component } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Component, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../../core/services/auth.service';
-import { PhoneInput } from '../../../../shared/components/phone-input/phone-input';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, PhoneInput],
+  imports: [RouterLink],
   template: `
     <div class="page">
       <div class="auth-card">
@@ -26,55 +24,34 @@ import { PhoneInput } from '../../../../shared/components/phone-input/phone-inpu
           </div>
         </div>
 
-        <!-- ═══════════════ FORMULAIRE ═══════════════ -->
+        <!-- ═══════════════ PANNEAU DROIT ═══════════════ -->
         <div class="form-panel">
           <div class="form-inner">
             <h1>Connexion</h1>
-            <p class="subtitle">Entrez vos identifiants pour continuer</p>
+            <p class="subtitle">Vous allez être redirigé vers la page de connexion sécurisée</p>
 
-            <form [formGroup]="form" (ngSubmit)="submit()">
+            <div class="info-box">
+              <i class="ti ti-shield-lock"></i>
+              <p>La connexion est sécurisée par <strong>Keycloak</strong>. Vous serez redirigé vers la plateforme d'authentification.</p>
+            </div>
 
-              @if (erreur) {
-                <div class="alert-error">{{ erreur }}</div>
-              }
+            <button type="button" class="btn-submit" (click)="login()">
+              <i class="ti ti-login"></i>
+              Se connecter
+            </button>
 
-              <div class="field-group">
-                <label>Numéro de téléphone</label>
-                <app-phone-input formControlName="telephone"></app-phone-input>
+            <div class="pro-banner" routerLink="/inscription-pro">
+              <i class="ti ti-tool"></i>
+              <div class="pro-banner-text">
+                Vous êtes un <strong>professionnel ?</strong>
+                Inscrivez votre garage et soyez visible partout au Burkina.
               </div>
+              <i class="ti ti-arrow-right"></i>
+            </div>
 
-              <div class="field-group">
-                <label>Mot de passe</label>
-                <div class="field-input" [class.focused]="form.get('motDePasse')?.dirty">
-                  <i class="ti ti-lock"></i>
-                  <input [type]="showPassword ? 'text' : 'password'" formControlName="motDePasse" placeholder="••••••••">
-                  <i class="ti eye" [class.ti-eye]="showPassword" [class.ti-eye-off]="!showPassword"
-                     (click)="showPassword = !showPassword"></i>
-                </div>
-              </div>
-
-              <div class="forgot-row">
-                <span class="forgot-link">Mot de passe oublié ?</span>
-              </div>
-
-              <button type="submit" class="btn-submit" [disabled]="loading || form.invalid">
-                {{ loading ? 'Connexion...' : 'Se connecter' }}
-              </button>
-
-              <div class="pro-banner" routerLink="/inscription-pro">
-                <i class="ti ti-tool"></i>
-                <div class="pro-banner-text">
-                  Vous êtes un <strong>professionnel ?</strong>
-                  Inscrivez votre garage et soyez visible partout au Burkina.
-                </div>
-                <i class="ti ti-arrow-right"></i>
-              </div>
-
-              <div class="mobile-signup-row">
-                Pas encore de compte ? <a routerLink="/inscription">S'inscrire</a>
-              </div>
-
-            </form>
+            <div class="mobile-signup-row">
+              Pas encore de compte ? <a routerLink="/inscription">S'inscrire</a>
+            </div>
           </div>
         </div>
 
@@ -141,7 +118,7 @@ import { PhoneInput } from '../../../../shared/components/phone-input/phone-inpu
       &:hover { background: rgba(255,255,255,.12); border-color: #fff; }
     }
 
-    // ─── FORMULAIRE ─────────────────────────────
+    // ─── PANNEAU DROIT ─────────────────────────────
     .form-panel {
       flex: 1;
       display: flex;
@@ -152,7 +129,10 @@ import { PhoneInput } from '../../../../shared/components/phone-input/phone-inpu
 
     .form-inner {
       width: 100%;
-      max-width: 380px;
+      max-width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
     }
 
     .form-inner h1 {
@@ -165,74 +145,53 @@ import { PhoneInput } from '../../../../shared/components/phone-input/phone-inpu
     .subtitle {
       font-size: 13.5px;
       color: var(--fg-text-secondary);
-      margin: 0 0 32px;
+      margin: 0 0 12px;
     }
 
-    form { display: flex; flex-direction: column; gap: 18px; }
-
-    .alert-error {
-      background: var(--fg-red-light);
-      color: var(--fg-red);
-      padding: 11px 15px;
-      border-radius: 10px;
-      font-size: 12.5px;
-      font-weight: 500;
-    }
-
-    .field-group { display: flex; flex-direction: column; gap: 7px; }
-
-    .field-group label {
-      font-size: 12.5px;
-      font-weight: 600;
-      color: var(--fg-text);
-    }
-
-    .field-input {
+    .info-box {
+      background: var(--fg-green-light);
+      border: 1.5px solid #c3e6d0;
+      border-radius: 12px;
+      padding: 16px;
       display: flex;
-      align-items: center;
-      gap: 10px;
-      background: var(--fg-bg);
-      border: 1.5px solid var(--fg-border);
-      border-radius: 10px;
-      padding: 13px 14px;
-      transition: border-color .2s;
+      align-items: flex-start;
+      gap: 12px;
 
-      i { font-size: 17px; color: #999; transition: color .2s; }
-
-      input {
-        flex: 1;
-        border: none;
-        outline: none;
-        background: transparent;
-        font-family: 'Poppins', sans-serif;
-        font-size: 13.5px;
-        color: var(--fg-text);
-
-        &::placeholder { color: #bbb; }
+      i {
+        font-size: 24px;
+        color: var(--fg-green);
+        flex-shrink: 0;
       }
 
-      .eye { cursor: pointer; }
+      p {
+        font-size: 12.5px;
+        color: var(--fg-green-dark);
+        line-height: 1.6;
+        margin: 0;
 
-      &.focused { border-color: var(--fg-green); i { color: var(--fg-green); } }
+        strong { font-weight: 700; }
+      }
     }
-
-    .forgot-row { text-align: right; margin-top: -6px; }
-    .forgot-link { font-size: 12.5px; color: var(--fg-text-secondary); cursor: pointer; }
 
     .btn-submit {
       background: var(--fg-green);
       color: #fff;
       border: none;
       border-radius: 10px;
-      padding: 15px;
+      padding: 16px;
       font-size: 14px;
       font-weight: 700;
       font-family: 'Poppins', sans-serif;
       cursor: pointer;
       transition: background .2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
 
-      &:hover:not(:disabled) { background: var(--fg-green-dark); }
-      &:disabled { opacity: .6; cursor: not-allowed; }
+      i { font-size: 18px; }
+
+      &:hover { background: var(--fg-green-dark); }
     }
 
     .pro-banner {
@@ -286,7 +245,6 @@ import { PhoneInput } from '../../../../shared/components/phone-input/phone-inpu
         padding: 32px 24px;
       }
 
-      .side-logo { height: 36px; margin-bottom: 24px; }
       .side-content h2 { font-size: 20px; }
       .side-content p { font-size: 13px; }
       .side-footer { display: none; }
@@ -297,37 +255,13 @@ import { PhoneInput } from '../../../../shared/components/phone-input/phone-inpu
   `],
 })
 export class Login {
-  form: FormGroup;
-  loading = false;
-  erreur = '';
-  showPassword = false;
 
-  constructor(
-    private fb: FormBuilder,
-    private auth: AuthService,
-    private router: Router
-  ) {
-    this.form = this.fb.group({
-      telephone: ['', Validators.required],
-      motDePasse: ['', Validators.required],
-    });
-  }
+  private readonly authService = inject(AuthService);
 
-  submit() {
-    if (this.form.invalid) return;
-    this.loading = true;
-    this.erreur = '';
-
-    this.auth.login(this.form.value).subscribe({
-      next: (res) => {
-        if (res.role === 'ROLE_ADMIN') this.router.navigate(['/admin']);
-        else if (res.role === 'ROLE_PRO') this.router.navigate(['/profil-pro']);
-        else this.router.navigate(['/']);
-      },
-      error: (err) => {
-        this.erreur = err.error?.erreur ?? 'Numéro ou mot de passe incorrect.';
-        this.loading = false;
-      },
-    });
+  /**
+   * Redirige l'utilisateur vers la page de connexion Keycloak.
+   */
+  login(): void {
+    this.authService.login();
   }
 }

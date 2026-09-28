@@ -21,7 +21,7 @@ function waLink(numero: string): string {
 @Component({
   selector: 'app-professionnel-detail',
   standalone: true,
-  imports: [DecimalPipe, ReactiveFormsModule, RouterLink, MediaUrlPipe],
+  imports: [DecimalPipe, ReactiveFormsModule,MediaUrlPipe],
   template: `
     <div class="detail-page">
 

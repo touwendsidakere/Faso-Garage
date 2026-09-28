@@ -1,14 +1,24 @@
-import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideRouter, withViewTransitions } from '@angular/router';
+import { ApplicationConfig } from '@angular/core';
+import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { provideKeycloak, includeBearerTokenInterceptor } from 'keycloak-angular';
 import { routes } from './app.routes';
-import { jwtInterceptor } from './core/interceptors/jwt.interceptor';
-import { errorInterceptor } from './core/interceptors/error.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideBrowserGlobalErrorListeners(),
-    provideRouter(routes, withViewTransitions()),
-    provideHttpClient(withInterceptors([jwtInterceptor, errorInterceptor])),
-  ],
+    provideKeycloak({
+      config: {
+        url: 'http://localhost:8081',
+        realm: 'faso-garages',
+        clientId: 'faso-garages-frontend'
+      },
+      initOptions: {
+        onLoad: 'check-sso',
+        silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
+        checkLoginIframe: false
+      }
+    }),
+    provideRouter(routes),
+    provideHttpClient(withInterceptors([includeBearerTokenInterceptor]))
+  ]
 };

@@ -1,52 +1,40 @@
 import { inject } from '@angular/core';
-import { CanActivateFn, Router } from '@angular/router';
-import { catchError, map, of } from 'rxjs';
-import { AuthService } from '../services/auth.service';
+import { CanActivateFn, Router, ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
+import { AuthGuardData, createAuthGuard } from 'keycloak-angular';
 
-// Redirige vers /connexion si non connecté
-export const authGuard: CanActivateFn = () => {
-  const auth = inject(AuthService);
-  const router = inject(Router);
+const isAccessAllowed = async (
+  route: ActivatedRouteSnapshot,
+  state: RouterStateSnapshot,
+  authData: AuthGuardData
+): Promise<boolean> => {
+  const { authenticated, grantedRoles, keycloak } = authData;
 
-  if (auth.isLoggedIn()) return true;
-  return router.createUrlTree(['/connexion']);
+  // Si non authentifié, rediriger vers Keycloak
+  if (!authenticated) {
+    await keycloak.login({
+      redirectUri: window.location.origin + state.url
+    });
+    return false;
+  }
+
+  // Récupérer le rôle requis depuis la route
+  const requiredRole = route.data['role'] as string | undefined;
+
+  // Si aucun rôle requis, autoriser l'accès
+  if (!requiredRole) {
+    return true;
+  }
+
+  // Vérifier si l'utilisateur a le rôle requis
+  const hasRole = grantedRoles.realmRoles.includes(requiredRole);
+
+  if (!hasRole) {
+    // Rediriger vers une page d'accès refusé
+    inject(Router).navigate(['/forbidden']);
+    return false;
+  }
+
+  return true;
 };
 
-// Réservé aux admins (rôle revérifié auprès du serveur, pas du localStorage)
-export const adminGuard: CanActivateFn = () => {
-  const auth = inject(AuthService);
-  const router = inject(Router);
-
-  if (!auth.isLoggedIn()) return router.createUrlTree(['/connexion']);
-
-  return auth.me().pipe(
-    map((user) => (user.role === 'ROLE_ADMIN' ? true : router.createUrlTree(['/']))),
-    catchError(() => of(router.createUrlTree(['/connexion'])))
-  );
-};
-
-// Réservé aux professionnels (rôle revérifié auprès du serveur, pas du localStorage)
-export const proGuard: CanActivateFn = () => {
-  const auth = inject(AuthService);
-  const router = inject(Router);
-
-  if (!auth.isLoggedIn()) return router.createUrlTree(['/connexion']);
-
-  return auth.me().pipe(
-    map((user) => (user.role === 'ROLE_PRO' ? true : router.createUrlTree(['/']))),
-    catchError(() => of(router.createUrlTree(['/connexion'])))
-  );
-};
-
-// Redirige les utilisateurs déjà connectés (ex: page login)
-export const guestGuard: CanActivateFn = () => {
-  const auth = inject(AuthService);
-  const router = inject(Router);
-  const role = auth.getRole();
-
-  if (!auth.isLoggedIn()) return true;
-
-  if (role === 'ROLE_ADMIN') return router.createUrlTree(['/admin']);
-  if (role === 'ROLE_PRO') return router.createUrlTree(['/mon-etablissement']);
-  return router.createUrlTree(['/']);
-};
+export const canActivateAuthRole = createAuthGuard<CanActivateFn>(isAccessAllowed);

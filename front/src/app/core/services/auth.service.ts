@@ -1,89 +1,195 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Router } from '@angular/router';
-import { Observable, tap } from 'rxjs';
-import { environment } from '../../../environments/environment';
-import {
-  LoginRequest,
-  LoginResponse,
-  RegisterUserRequest,
-  RegisterProRequest,
-} from '../models';
+import { Observable } from 'rxjs';
+import Keycloak from 'keycloak-js';
 
-@Injectable({ providedIn: 'root' })
+/**
+ * DTOs
+ */
+export interface RegisterRequest {
+  nom: string;
+  prenom: string;
+  telephone: string;
+  motDePasse: string;
+  role?: string;
+  email?: string;
+  nomEtablissement?: string;
+  categorieId?: number;
+  serviceIds?: number[];
+  description?: string;
+  telephonePro?: string;
+  whatsapp?: string;
+  latitude?: number;
+  longitude?: number;
+  ville?: string;
+  horaires?: string;
+}
+
+export interface AuthResponse {
+  telephone: string;
+  email?: string;
+  nom: string;
+  prenom: string;
+  role: string;
+  userId: number;
+}
+
+export interface CurrentUser {
+  telephone?: string;
+  email?: string;
+  nom?: string;
+  prenom?: string;
+  role?: string;
+  userId?: number;
+}
+
+@Injectable({
+  providedIn: 'root'
+})
 export class AuthService {
-  private readonly TOKEN_KEY = 'fg_token';
-  private readonly USER_KEY = 'fg_user';
 
-  currentUser = signal<LoginResponse | null>(this.loadUser());
+  private readonly keycloak = inject(Keycloak);
+  private readonly http = inject(HttpClient);
 
-  constructor(private http: HttpClient, private router: Router) {}
+  private readonly API_URL = 'http://localhost:8080/api';
 
-  login(credentials: LoginRequest): Observable<LoginResponse> {
-    return this.http
-      .post<LoginResponse>(`${environment.apiUrl}/auth/login`, credentials)
-      .pipe(tap((res) => this.storeSession(res)));
+  // ============================================================
+  // SIGNAL : utilisateur connecté
+  // ============================================================
+
+  /**
+   * Signal contenant les infos de l'utilisateur connecté (depuis Keycloak).
+   * Utilisé dans les templates Angular : `auth.currentUser()?.email`
+   */
+  currentUser = signal<CurrentUser | null>(null);
+
+  constructor() {
+    this.refreshCurrentUser();
   }
 
-  registerUser(data: RegisterUserRequest): Observable<LoginResponse> {
-    return this.http
-      .post<LoginResponse>(`${environment.apiUrl}/auth/register`, data)
-      .pipe(tap((res) => this.storeSession(res)));
+  /**
+   * Rafraîchit le signal `currentUser` à partir du token Keycloak.
+   * À appeler après login/logout.
+   */
+  refreshCurrentUser(): void {
+    if (this.keycloak.authenticated && this.keycloak.tokenParsed) {
+      const parsed = this.keycloak.tokenParsed;
+      const roles = this.getUserRoles();
+      const role = roles.includes('ADMIN') ? 'ROLE_ADMIN'
+                 : roles.includes('PRO')   ? 'ROLE_PRO'
+                 : 'ROLE_USER';
+
+      this.currentUser.set({
+        telephone: parsed['preferred_username'],
+        email:     parsed['email'],
+        nom:       parsed['family_name'],
+        prenom:    parsed['given_name'],
+        role:      role,
+        userId:    undefined
+      });
+    } else {
+      this.currentUser.set(null);
+    }
   }
 
-  registerPro(data: RegisterProRequest): Observable<LoginResponse> {
-    return this.http
-      .post<LoginResponse>(`${environment.apiUrl}/auth/register`, data)
-      .pipe(tap((res) => this.storeSession(res)));
-  }
+  // ============================================================
+  // AUTHENTIFICATION KEYCLOAK
+  // ============================================================
 
-  me(): Observable<LoginResponse> {
-    return this.http.get<LoginResponse>(`${environment.apiUrl}/auth/me`);
+  login(): void {
+    this.keycloak.login({
+      redirectUri: window.location.origin + '/'
+    });
   }
 
   logout(): void {
-    localStorage.removeItem(this.TOKEN_KEY);
-    localStorage.removeItem(this.USER_KEY);
-    this.currentUser.set(null);
-    this.router.navigate(['/connexion']);
-  }
-
-  getToken(): string | null {
-    return localStorage.getItem(this.TOKEN_KEY);
+    this.keycloak.logout({
+      redirectUri: window.location.origin
+    });
   }
 
   isLoggedIn(): boolean {
-    return !!this.getToken();
+    return this.keycloak.authenticated ?? false;
   }
 
-  getRole(): string | null {
-    return this.currentUser()?.role ?? null;
+  async getToken(): Promise<string | undefined> {
+    if (!this.keycloak.authenticated) return undefined;
+    try {
+      await this.keycloak.updateToken(30);
+      return this.keycloak.token;
+    } catch {
+      this.logout();
+      return undefined;
+    }
   }
+
+  getUserRoles(): string[] {
+    return this.keycloak.realmAccess?.roles ?? [];
+  }
+
+  hasRole(role: string): boolean {
+    return this.getUserRoles().includes(role);
+  }
+
+  // ============================================================
+  // MÉTHODES DE RÔLE (utilisées dans les templates)
+  // ============================================================
 
   isAdmin(): boolean {
-    return this.getRole() === 'ROLE_ADMIN';
+    return this.hasRole('ADMIN');
   }
 
   isPro(): boolean {
-    return this.getRole() === 'ROLE_PRO';
+    return this.hasRole('PRO');
   }
 
   isUser(): boolean {
-    return this.getRole() === 'ROLE_USER';
+    return this.hasRole('USER');
   }
 
-  private storeSession(res: LoginResponse): void {
-    localStorage.setItem(this.TOKEN_KEY, res.token);
-    localStorage.setItem(this.USER_KEY, JSON.stringify(res));
-    this.currentUser.set(res);
+  /**
+   * Récupère le rôle principal sous forme "ROLE_XXX"
+   */
+  getRole(): string {
+    const roles = this.getUserRoles();
+    if (roles.includes('ADMIN')) return 'ROLE_ADMIN';
+    if (roles.includes('PRO'))   return 'ROLE_PRO';
+    return 'ROLE_USER';
   }
 
-  private loadUser(): LoginResponse | null {
-    try {
-      const raw = localStorage.getItem(this.USER_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
+  // ============================================================
+  // INFOS UTILISATEUR
+  // ============================================================
+
+  getUsername(): string | undefined {
+    return this.keycloak.tokenParsed?.['preferred_username'];
+  }
+
+  getFullName(): string {
+    const parsed = this.keycloak.tokenParsed;
+    if (!parsed) return '';
+    return `${parsed['given_name'] ?? ''} ${parsed['family_name'] ?? ''}`.trim();
+  }
+
+  // ============================================================
+  // INSCRIPTION (Option B : via le backend)
+  // ============================================================
+
+  registerUser(data: RegisterRequest): Observable<AuthResponse> {
+    const payload: RegisterRequest = { ...data, role: 'ROLE_USER' };
+    return this.http.post<AuthResponse>(`${this.API_URL}/auth/register`, payload);
+  }
+
+  registerPro(data: RegisterRequest): Observable<AuthResponse> {
+    const payload: RegisterRequest = { ...data, role: 'ROLE_PRO' };
+    return this.http.post<AuthResponse>(`${this.API_URL}/auth/register`, payload);
+  }
+
+  // ============================================================
+  // APPEL API : infos utilisateur (backend)
+  // ============================================================
+
+  getCurrentUser(): Observable<AuthResponse> {
+    return this.http.get<AuthResponse>(`${this.API_URL}/auth/me`);
   }
 }

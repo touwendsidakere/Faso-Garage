@@ -57,7 +57,7 @@ import { AnnonceService } from '../../../core/services/api.services';
                       <i class="ti ti-user-circle"></i> Mon profil
                     </a>
                   }
-                  <button class="dropdown-item danger" type="button" (click)="auth.logout()">
+                  <button class="dropdown-item danger" type="button" (click)="logout()">
                     <i class="ti ti-logout"></i> Déconnexion
                   </button>
                 </div>
@@ -92,7 +92,7 @@ import { AnnonceService } from '../../../core/services/api.services';
             @if (auth.isUser()) {
               <a routerLink="/profil" (click)="closeMobileMenu()">Mon profil</a>
             }
-            <button type="button" class="mobile-logout" (click)="auth.logout(); closeMobileMenu()">
+            <button type="button" class="mobile-logout" (click)="logout(); closeMobileMenu()">
               <i class="ti ti-logout"></i> Déconnexion
             </button>
           }
@@ -101,6 +101,7 @@ import { AnnonceService } from '../../../core/services/api.services';
     </header>
   `,
   styles: [`
+    /* ⚠️ CSS INCHANGÉ — Ne pas toucher */
     :host { display: block; }
 
     // ─── BANDE DÉFILANTE ────────────────────────────────────────
@@ -390,11 +391,14 @@ export class Header {
     return active?.texte ?? null;
   });
 
+  /**
+   * Nom affiché dans le header (depuis Keycloak)
+   */
   nomAffiche = computed(() => {
-    const u = this.auth.currentUser();
-    if (!u) return '';
-    if (u.prenom) return u.prenom;
-    return u.telephone;
+    const fullName = this.auth.getFullName();
+    if (fullName) return fullName;
+    const username = this.auth.getUsername();
+    return username ?? '';
   });
 
   constructor() {
@@ -430,5 +434,12 @@ export class Header {
   toggleAccountMenu(event: Event): void {
     event.stopPropagation();
     this.accountMenuOpen.update((v) => !v);
+  }
+
+  /**
+   * Déconnexion via Keycloak
+   */
+  logout(): void {
+    this.auth.logout();
   }
 }
