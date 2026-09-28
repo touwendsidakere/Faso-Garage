@@ -1,10 +1,14 @@
-HELP.md
+# ===== FICHIERS DE BUILD =====
 target/
+*.class
+*.jar
+*.war
+HELP.md
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-### STS ###
+# ===== STS (Spring Tools Suite) =====
 .apt_generated
 .classpath
 .factorypath
@@ -13,13 +17,13 @@ target/
 .springBeans
 .sts4-cache
 
-### IntelliJ IDEA ###
+# ===== IntelliJ IDEA =====
 .idea
 *.iws
 *.iml
 *.ipr
 
-### NetBeans ###
+# ===== NetBeans =====
 /nbproject/private/
 /nbbuild/
 /dist/
@@ -29,41 +33,42 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-### VS Code ###
+# ===== VS Code =====
 .vscode/
-# Fichiers de build
-target/
-*.class
-*.jar
-*.war
 
-# Fichiers uploadés
-back/uploads/
-uploads/
-
-# Fichiers sensibles
+# ===== FICHIERS SENSIBLES (⚠️ IMPORTANT) =====
 .env
+*.env
 application-local.properties
 application-secret.properties
 
-# IDE
-.vscode/
-.idea/
-*.iml
-*.swp
+# ⚠️ Application.properties contient les secrets Keycloak + DB
+back/src/main/resources/application.properties
 
-# OS
-.DS_Store
-Thumbs.db
+# ⚠️ Docker Compose contient les mots de passe Keycloak
+# Décommenter si tu veux le protéger (recommandé)
+# keycloak/docker-compose.yml
 
-# Node
+# ⚠️ Données Docker Keycloak (ne pas versionner)
+keycloak/keycloak_data/
+
+# ===== FICHIERS UPLOADÉS =====
+back/uploads/
+uploads/
+
+# ===== NODE =====
 node_modules/
 front/node_modules/
+front/dist/
+front/.angular/
 
-# Logs
+# ===== LOGS =====
 *.log
+logs/
 
-# Fichiers temporaires
+# ===== FICHIERS TEMPORAIRES =====
 back_tree.txt
 front_tree.txt
 .claude/
+*.tmp
+*.bak

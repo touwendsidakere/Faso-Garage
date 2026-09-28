@@ -4,7 +4,6 @@ import java.util.List;
 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,7 +24,7 @@ import lombok.RequiredArgsConstructor;
 
 @Component
 @RequiredArgsConstructor
-@Profile({"dev", "local", "default"})  // ← AJOUT de "default" pour que ça s'exécute partout
+@Profile({"dev", "local", "default"})
 public class DataLoader implements CommandLineRunner {
 
     private final CategorieRepository categorieRepository;
@@ -34,13 +33,10 @@ public class DataLoader implements CommandLineRunner {
     private final AstuceRepository astuceRepository;
     private final UtilisateurRepository utilisateurRepository;
     private final ProfessionnelRepository professionnelRepository;
-    private final PasswordEncoder passwordEncoder;
 
     @Override
     @Transactional
     public void run(String... args) {
-
-        
 
         // ===== 1. CATÉGORIES =====
         if (categorieRepository.count() == 0) {
@@ -52,7 +48,7 @@ public class DataLoader implements CommandLineRunner {
                     Categorie.builder().libelle("Lavage automobile").icone("fa-car-wash").build()
             );
             categorieRepository.saveAll(categories);
-            System.out.println(" Catégories initialisées");
+            System.out.println("✅ Catégories initialisées");
 
             Categorie garage = categorieRepository.findByLibelleIgnoreCase("Garage mécanique").orElse(null);
             if (garage != null) {
@@ -63,7 +59,7 @@ public class DataLoader implements CommandLineRunner {
                         ServiceOffert.builder().libelle("Freinage").categorie(garage).build()
                 );
                 serviceOffertRepository.saveAll(services);
-                System.out.println(" Services initiés");
+                System.out.println("Services initiés");
             }
         }
 
@@ -92,10 +88,12 @@ public class DataLoader implements CommandLineRunner {
                             .build()
             );
             astuceRepository.saveAll(astuces);
-            System.out.println("Astuces initialisées");
+            System.out.println(" Astuces initialisées");
         }
 
         // ===== 4. COMPTE ADMINISTRATEUR =====
+        //  Avec Keycloak, les mots de passe sont gérés par Keycloak.
+        // Ce compte local sert uniquement de référence pour les données métier.
         if (!utilisateurRepository.existsByEmail("admin@fasogarages.com")
             && !utilisateurRepository.existsByTelephone("+22670000000")) {
             Utilisateur admin = Utilisateur.builder()
@@ -103,13 +101,13 @@ public class DataLoader implements CommandLineRunner {
                     .prenom("Faso")
                     .email("admin@fasogarages.com")
                     .telephone("+22670000000")
-                    .motDePasse(passwordEncoder.encode("admin123"))
+                    .motDePasse("KEYCLOAK_MANAGED")
                     .role(Utilisateur.Role.ROLE_ADMIN)
                     .build();
             utilisateurRepository.save(admin);
-            System.out.println(" Compte administrateur créé");
+            System.out.println("Compte administrateur créé (référence locale)");
         } else {
-            System.out.println(" Compte administrateur existe déjà, ignoré.");
+            System.out.println("Compte administrateur existe déjà, ignoré.");
         }
 
         // ===== 5. PROFESSIONNEL DE DÉMONSTRATION =====
@@ -120,7 +118,7 @@ public class DataLoader implements CommandLineRunner {
                     .prenom("Souleymane")
                     .email("demo@garage.com")
                     .telephone("+22670001111")
-                    .motDePasse(passwordEncoder.encode("password123"))
+                    .motDePasse("KEYCLOAK_MANAGED")
                     .role(Utilisateur.Role.ROLE_PRO)
                     .build();
             utilisateurRepository.save(proUser);

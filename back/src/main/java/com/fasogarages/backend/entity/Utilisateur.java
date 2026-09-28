@@ -8,13 +8,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 @Entity
@@ -23,7 +18,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Utilisateur implements UserDetails {
+public class Utilisateur {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -45,23 +40,18 @@ public class Utilisateur implements UserDetails {
     @Column(unique = true, nullable = false)
     private String telephone;
 
-    // ===== NOUVEAUX CHAMPS POUR LES INFOS PAYS =====
-    @Column(name = "indicatif_pays")
-    private Integer indicatifPays;
-
-    @Column(name = "code_pays_iso", length = 2)
-    private String codePaysIso;
-
-    @Column(name = "telephone_verifie")
-    private boolean telephoneVerifie = false;
-
-    @NotBlank
     @Column(nullable = false)
     private String motDePasse;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
+
+    private Integer indicatifPays;
+    private String codePaysIso;
+
+    @Builder.Default
+    private Boolean telephoneVerifie = false;
 
     @CreationTimestamp
     @Column(updatable = false)
@@ -78,40 +68,5 @@ public class Utilisateur implements UserDetails {
         ROLE_USER,
         ROLE_PRO,
         ROLE_ADMIN
-    }
-
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.singletonList(new SimpleGrantedAuthority(role.name()));
-    }
-
-    @Override
-    public String getPassword() {
-        return motDePasse;
-    }
-
-    @Override
-    public String getUsername() {
-        return telephone;
-    }
-
-    @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
-
-    @Override
-    public boolean isAccountNonLocked() {
-        return true;
-    }
-
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
-    }
-
-    @Override
-    public boolean isEnabled() {
-        return true;
     }
 }

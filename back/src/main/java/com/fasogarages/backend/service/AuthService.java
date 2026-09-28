@@ -1,16 +1,5 @@
 package com.fasogarages.backend.service;
 
-import java.util.List;
-
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.fasogarages.backend.dto.AuthRequest;
 import com.fasogarages.backend.dto.AuthResponse;
 import com.fasogarages.backend.dto.RegisterRequest;
 import com.fasogarages.backend.entity.Categorie;
@@ -21,9 +10,11 @@ import com.fasogarages.backend.repository.CategorieRepository;
 import com.fasogarages.backend.repository.ProfessionnelRepository;
 import com.fasogarages.backend.repository.ServiceOffertRepository;
 import com.fasogarages.backend.repository.UtilisateurRepository;
-import com.fasogarages.backend.security.JwtUtils;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -33,11 +24,8 @@ public class AuthService {
     private final ProfessionnelRepository professionnelRepository;
     private final CategorieRepository categorieRepository;
     private final ServiceOffertRepository serviceOffertRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtUtils jwtUtils;
-    private final AuthenticationManager authenticationManager;
-    private final UserDetailsService userDetailsService;
     private final TelephoneValidationService telephoneValidationService;
+    private final KeycloakAdminService keycloakAdminService;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -68,7 +56,16 @@ public class AuthService {
         }
         Utilisateur.Role role = Utilisateur.Role.valueOf(request.getRole());
 
-        // 7. Créer l'utilisateur
+        // 7. Créer l'utilisateur dans Keycloak
+        String keycloakRoleName = request.getRole().replace("ROLE_", ""); // "USER" ou "PRO"
+        String keycloakUserId = keycloakAdminService.createUser(
+                telephoneFormate,
+                request.getEmail(),
+                request.getMotDePasse(),
+                keycloakRoleName
+        );
+
+        // 8. Créer l'utilisateur dans la base locale (pour référence)
         Utilisateur utilisateur = Utilisateur.builder()
                 .nom(request.getNom())
                 .prenom(request.getPrenom())
@@ -77,13 +74,13 @@ public class AuthService {
                 .indicatifPays(indicatifPays)
                 .codePaysIso(codePays)
                 .telephoneVerifie(false)
-                .motDePasse(passwordEncoder.encode(request.getMotDePasse()))
+                .motDePasse("KEYCLOAK_MANAGED")
                 .role(role)
                 .build();
 
         utilisateur = utilisateurRepository.save(utilisateur);
 
-        // 8. Si c'est un professionnel, créer le profil
+        // 9. Si c'est un professionnel, créer le profil
         if (role == Utilisateur.Role.ROLE_PRO) {
             if (request.getCategorieId() == null) {
                 throw new RuntimeException("La catégorie est obligatoire pour un professionnel");
@@ -109,12 +106,8 @@ public class AuthService {
             professionnelRepository.save(professionnel);
         }
 
-        // 9. Générer le token JWT
-        UserDetails userDetails = userDetailsService.loadUserByUsername(utilisateur.getTelephone());
-        String token = jwtUtils.generateToken(userDetails);
-
+        // 10. Retourner la réponse (le token viendra de Keycloak côté frontend)
         return AuthResponse.builder()
-                .token(token)
                 .telephone(utilisateur.getTelephone())
                 .email(utilisateur.getEmail())
                 .nom(utilisateur.getNom())
@@ -137,11 +130,21 @@ public class AuthService {
             throw new RuntimeException("Le rôle doit être ROLE_USER, ROLE_PRO ou ROLE_ADMIN");
         }
 
+        // Créer dans Keycloak
+        String keycloakRoleName = dto.getRole().replace("ROLE_", "");
+        keycloakAdminService.createUser(
+                dto.getTelephone(),
+                null,
+                dto.getMotDePasse(),
+                keycloakRoleName
+        );
+
+        // Créer en base locale
         Utilisateur utilisateur = Utilisateur.builder()
                 .nom(dto.getNom())
                 .prenom(dto.getPrenom())
                 .telephone(dto.getTelephone())
-                .motDePasse(passwordEncoder.encode(dto.getMotDePasse()))
+                .motDePasse("KEYCLOAK_MANAGED")
                 .role(role)
                 .build();
 
@@ -169,11 +172,7 @@ public class AuthService {
             professionnelRepository.save(professionnel);
         }
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(utilisateur.getTelephone());
-        String token = jwtUtils.generateToken(userDetails);
-
         return AuthResponse.builder()
-                .token(token)
                 .telephone(utilisateur.getTelephone())
                 .email(utilisateur.getEmail())
                 .nom(utilisateur.getNom())
@@ -190,46 +189,5 @@ public class AuthService {
         return serviceOffertRepository.findAllById(serviceIds);
     }
 
-    // ============================================================
-    // MÉTHODE LOGIN AVEC LOGS DE DIAGNOSTIC
-    // ============================================================
-    public AuthResponse login(AuthRequest request) {
-        System.out.println("═══════════════════════════════════════");
-        System.out.println("🔐 TENTATIVE DE CONNEXION");
-        System.out.println("📞 Téléphone reçu : [" + request.getTelephone() + "]");
-        System.out.println("🔑 Mot de passe reçu : [" + request.getMotDePasse() + "]");
-
-        try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getTelephone(), request.getMotDePasse())
-            );
-            System.out.println("✅ Authentification Spring Security OK");
-        } catch (Exception e) {
-            System.out.println("❌ ÉCHEC authentification : " + e.getClass().getSimpleName());
-            System.out.println("❌ Message : " + e.getMessage());
-            System.out.println("═══════════════════════════════════════");
-            throw e;
-        }
-
-        Utilisateur utilisateur = utilisateurRepository.findByTelephone(request.getTelephone())
-                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
-
-        System.out.println("👤 Utilisateur trouvé : " + utilisateur.getEmail());
-        System.out.println("🎭 Rôle : " + utilisateur.getRole());
-        System.out.println("✅ Compte activé : " + utilisateur.isEnabled());
-        System.out.println("═══════════════════════════════════════");
-
-        UserDetails userDetails = userDetailsService.loadUserByUsername(utilisateur.getTelephone());
-        String token = jwtUtils.generateToken(userDetails);
-
-        return AuthResponse.builder()
-                .token(token)
-                .telephone(utilisateur.getTelephone())
-                .email(utilisateur.getEmail())
-                .nom(utilisateur.getNom())
-                .prenom(utilisateur.getPrenom())
-                .role(utilisateur.getRole().name())
-                .userId(utilisateur.getId())
-                .build();
-    }
+    // ⚠️ La méthode login() est SUPPRIMÉE car c'est Keycloak qui gère la connexion
 }

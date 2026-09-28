@@ -7,30 +7,21 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import com.fasogarages.backend.security.JwtAuthenticationFilter;
-
-import lombok.RequiredArgsConstructor;
+import com.fasogarages.backend.security.KeycloakRoleConverter;
 
 @Configuration
 @EnableWebSecurity
-@RequiredArgsConstructor
 public class SecurityConfig {
-
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Value("${cors.allowed.origins}")
     private String allowedOrigins;
@@ -41,15 +32,13 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        // ===== AUTHENTIFICATION =====
-                        .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
+                        // ===== ENDPOINTS PUBLICS =====
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/public/**",
                                 "/api/services/**",
                                 "/api/categories/**",
-                                "/api/packs/**",           
+                                "/api/packs/**",
                                 "/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
@@ -57,17 +46,11 @@ public class SecurityConfig {
                         ).permitAll()
 
                         // ===== PROFESSIONNELS =====
-                        .requestMatchers(HttpMethod.GET, "/api/professionnels/pending").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/professionnels/profil").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/professionnels/profil").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/professionnels").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/professionnels/search").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/professionnels/{id}").permitAll()
-
-                        // ===== CATÉGORIES ET SERVICES =====
-                        .requestMatchers(HttpMethod.GET, "/api/categories").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/services").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/services/categories/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/professionnels/profil").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/professionnels/profil").authenticated()
 
                         // ===== AVIS =====
                         .requestMatchers(HttpMethod.GET, "/api/avis/professionnel/**").permitAll()
@@ -80,8 +63,8 @@ public class SecurityConfig {
                         // ===== FICHIERS =====
                         .requestMatchers(HttpMethod.GET, "/api/fichiers/**").permitAll()
 
-                        // ===== ABONNEMENTS (Professionnels) =====
-                        .requestMatchers("/api/abonnements/**").hasAnyRole("PRO", "ADMIN")  
+                        // ===== ABONNEMENTS =====
+                        .requestMatchers("/api/abonnements/**").hasAnyRole("PRO", "ADMIN")
 
                         // ===== ADMINISTRATION =====
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
@@ -90,24 +73,24 @@ public class SecurityConfig {
                         // ===== TOUT LE RESTE =====
                         .anyRequest().authenticated()
                 )
+                // ===== CONFIGURATION OAUTH2 RESOURCE SERVER =====
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
+                )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                );
 
         return http.build();
     }
 
-    @Bean
-    public AuthenticationManager authenticationManager(
-            AuthenticationConfiguration authenticationConfiguration
-    ) throws Exception {
-        return authenticationConfiguration.getAuthenticationManager();
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+    /**
+     * Configure le convertisseur JWT pour extraire les rôles Keycloak.
+     */
+    private JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(new KeycloakRoleConverter());
+        return converter;
     }
 
     @Bean
